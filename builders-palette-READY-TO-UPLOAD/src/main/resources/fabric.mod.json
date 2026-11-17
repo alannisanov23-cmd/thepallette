@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "builderspalette",
+  "version": "${version}",
+  "name": "Builder's Palette",
+  "description": "Look at a block to see which other blocks match its colour: same-colour dyed blocks and natural look-alikes.",
+  "authors": ["You"],
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["dev.builderspalette.BuildersPaletteClient"]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.5",
+    "minecraft": "~26.3",
+    "java": ">=25",
+    "fabric-api": "*"
+  }
+}
