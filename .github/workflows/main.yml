@@ -1,0 +1,73 @@
+name: Build builders-palette-jar
+
+on:
+  push:
+    branches: [main, master]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # GitHub does not unzip uploaded zips, so unpack one if the project isn't visible yet.
+      - name: Unpack any uploaded zip
+        run: |
+          if [ -z "$(find . -name BuildersPaletteClient.java -not -path './.git/*' | head -n1)" ]; then
+            for z in $(find . -name '*.zip' -not -path './.git/*'); do
+              echo "Unzipping $z"
+              unzip -o -q "$z" -d "_unzipped_$(basename "$z" .zip)"
+            done
+          fi
+
+      - name: Find this mod
+        id: proj
+        run: |
+          SRC=$(find . -name BuildersPaletteClient.java -not -path './.git/*' | head -n1)
+          if [ -z "$SRC" ]; then
+            echo "::error::Could not find BuildersPaletteClient.java. Files present:"
+            find . -not -path './.git/*' -type f | head -50
+            exit 1
+          fi
+          DIR=${SRC%/src/main/java/*}
+          echo "dir=$DIR" >> "$GITHUB_OUTPUT"
+          echo "Building in $DIR"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: current
+
+      - name: Build
+        working-directory: ${{ steps.proj.outputs.dir }}
+        run: gradle build --no-daemon
+
+      - name: Collect jar
+        run: |
+          mkdir -p out
+          for j in "${{ steps.proj.outputs.dir }}"/build/libs/*.jar; do
+            case "$j" in *-sources.jar) ;; *) cp "$j" out/ ;; esac
+          done
+          ls -l out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: builders-palette-jar
+          path: out/*.jar
+
+      - name: Publish GitHub release (on v* tag)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: out/*.jar
